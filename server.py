@@ -7,6 +7,7 @@ import os
 import time
 import json
 import sys
+import string
 
 name = 'Game Thing'
 version = '0.1'
@@ -24,6 +25,19 @@ player_data = {}
 player_passwords = {}
 room_data = {}
 enemy_data = {}
+
+class_chart = '''
+
+1 | Warrior
+You receive 10 extra strength points
+
+2 | Ranger
+You receive 10 extra agility points
+
+3 | Mage
+You receive 5 SP attack points and 5 SP defense points
+
+'''
 #
 #
 #
@@ -79,10 +93,27 @@ def load_player(player_name):
 
     try:
         filein = open(player_dir+player_name+'/info.dat','r')
-        player_data[player_name] = filein.read()
+        player_data[player_name] = json.loads(filein.read())
         filein.close()
         filein = open(player_dir+player_name+'/password.dat','r')
         player_passwords[player_name] = filein.read()
+        filein.close()
+    except:
+        return False
+    return True
+#
+#
+#
+#
+#
+#Load Room Function
+def load_room(room_id):
+    global room_dir
+    global room_data
+
+    try:
+        filein = open(room_dir+str(room_id),'r')
+        room_data[str(room_id)] = json.loads(filein.read())
         filein.close()
     except:
         return False
@@ -155,14 +186,27 @@ def receive(connection):
 #
 #
 #
-#Player Handling Function
-def player_handler(conn,addr):
+#Clear Player Screen Function
+def clear_player_screen(conn):
+    try:
+        for i in range(0,100):
+            conn.sendall('\n')
+    except:
+        return False
+    else:
+        return True
+#
+#
+#
+#
+#
+#Login Function
+def player_login(conn,addr):
     global name
+    global class_chart
     username = str()
     password = str()
     
-    conn.sendall(name+' Server v'+version+'\n')
-    conn.sendall('------------------------------------\n')
     conn.sendall('Please log in, or enter the username you wish to use\n')
 
     while True:
@@ -172,13 +216,129 @@ def player_handler(conn,addr):
         password = receive(conn)
 
         if username in player_data:
-            if password = player_passwords[username]:
-                conn.sendall('Successfully logged in as '+username)
+            if password == player_passwords[username]:
+                conn.sendall('Successfully logged in as '+username+'\n')
+                time.sleep(1)
+                clear_player_screen(conn)
+                break
             else:
-                conn.sendall('Incorrect password for user <'+username+'>')
+                conn.sendall('Incorrect password for user <'+username+'>\n')
         else:
-            conn.sendall('The user <'+username+'> does not exist')
-            conn.sendall('Would you like to create an account with
+            conn.sendall('The user <'+username+'> does not exist\n')
+            conn.sendall('Would you like to create an account with the provided information (Y/N)?\n')
+            answer = string.lower(receive(conn))
+            if answer == 'y':
+                conn.sendall('-------------------------------------\n')
+                conn.sendall('What class would you like to be?\n')
+                conn.sendall('Please enter the number to the left of that class\n')
+                conn.sendall('\n')
+                conn.sendall('Entering a custom class instead of a number is allowed\n')
+                conn.sendall('but you will not receive any bonuses\n')
+                conn.sendall(class_chart)
+                
+                pclass = str(receive(conn))
+                if pclass == '1':
+                    pclass = 'Warrior'
+                elif pclass == '2':
+                    pclass = 'Ranger'
+                elif pclass == '3':
+                    pclass = 'Mage'
+
+                print 'Creating player '+username+'...',
+                conn.sendall('Creating player <'+username+'>...')
+                create_player(username,password,pclass)
+                conn.sendall('Done\n')
+                print 'Done'
+                print 'Saving and loading data for '+username+'...',
+                conn.sendall('Saving your player to the server...')
+                save_player(username)
+                load_player(username)
+                conn.sendall('Done\n')
+                print 'Done'
+                conn.sendall('You are now logged in as '+username+'!\n')
+                time.sleep(1)
+                clear_player_screen(conn)
+                break
+    return str(username)
+#
+#
+#
+#
+#
+#Send Room Function
+def send_room(conn,room_id,user):
+    global room_data
+    global player_data
+    room_id = str(room_id)
+    dash_length = (45/2)-2-(len(room_data[room_id]['name'])/2)
+    
+    clear_player_screen(conn)
+    for i in range(0,dash_length):
+        conn.sendall('-')
+    conn.sendall(' '+room_data[room_id]['name']+' ')
+    for i in range(0,dash_length):
+        conn.sendall('-')
+    conn.sendall('\n')
+    conn.sendall(room_data[room_id]['desc'].replace('\\n','\n')+'\n')
+    conn.sendall('---------------------------------------------\n')
+    conn.sendall(user+' | Health ('+str(player_data[user]['health'])+'/'+str(player_data[user]['max_health'])+') | Mana ('+str(player_data[user]['mana'])+'/'+str(player_data[user]['max_mana'])+')\n')
+    conn.sendall('---------------------------------------------\n')
+#
+#
+#
+#
+#
+#Send Help Function
+def send_help(conn):
+    clear_player_screen(conn)
+    conn.sendall('''
+-------------------- Help Menu ---------------------
+Go - Travel north, south, east, or west, as long as
+     the room has paths there.
+----------------------------------------------------
+Press <RETURN> to exit this menu
+''')
+    receive(conn)
+    clear_player_screen(conn)
+    return
+#
+#
+#
+#
+#
+#Player Handling Function
+def player_handler(conn,addr):
+    global name
+    global version
+    current_room = str(0)
+    username = str()
+
+    clear_player_screen(conn)
+    conn.sendall(name+' Server v'+version+'\n')
+    conn.sendall('------------------------------------\n')
+    username = player_login(conn,addr)
+    send_room(conn,0,username)
+
+    while True:
+        conn.sendall('Command >')
+        command = receive(conn)
+
+        if command == 'help':
+            send_help(conn)
+            send_room(conn,current_room,username)
+
+        if command == 'exit' or command == 'quit':
+            clear_player_screen(conn)
+            conn.sendall('Farewell, '+username+'...')
+            time.sleep(2)
+            clear_player_screen(conn)
+            conn.close()
+            break
+
+        if command[:3] == 'go ':
+            direction = command[3:]
+            move_player(current, direction)
+            
 #
 #
 #
@@ -268,7 +428,7 @@ print 'Loading room data'
 rooms = os.listdir(room_dir)
 print 'Preparing to load '+str(len(rooms))+' rooms...'
 time.sleep(2)
-for i in range(1,len(rooms)):
+for i in range(0,len(rooms)):
     success = load_room(i)
     if success:
         print 'ID '+str(i)+' [ OK ]'
