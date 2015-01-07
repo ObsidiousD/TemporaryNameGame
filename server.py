@@ -1,11 +1,12 @@
 #Server Framework
 #
 #Written By MartianMellow12 (MM12) And ObsidiousD
-import threading
+import thread
 import socket
 import os
 import time
 import json
+import sys
 
 name = 'Game Thing'
 version = '0.1'
@@ -15,7 +16,12 @@ player_dir = local_dir+'Resources/player_data/'
 room_dir = local_dir+'Resources/room_data/'
 enemy_dir = local_dir+'Resources/enemy_data/'
 
+host = ''
+port = 8080
+newline = [chr(13)+chr(10),chr(13),chr(10)]
+
 player_data = {}
+player_passwords = {}
 room_data = {}
 enemy_data = {}
 #
@@ -75,6 +81,9 @@ def load_player(player_name):
         filein = open(player_dir+player_name+'/info.dat','r')
         player_data[player_name] = filein.read()
         filein.close()
+        filein = open(player_dir+player_name+'/password.dat','r')
+        player_passwords[player_name] = filein.read()
+        filein.close()
     except:
         return False
     return True
@@ -84,7 +93,7 @@ def load_player(player_name):
 #
 #
 #Create Player Function
-def create_player(player_name,player_class):
+def create_player(player_name,player_password,player_class):
     global player_dir
     global player_data
 
@@ -93,11 +102,17 @@ def create_player(player_name,player_class):
     
     try:
         os.mkdir(player_dir+player_name)
-        fileout = open(player_dir+player_name+'/info.dat','w')
+        fileout = open(player_dir+player_name+'/password.dat','w')
+        fileout.write(player_password)
+        fileout.close()
     except:
         return 0 #Code for failure
 
     info = {
+        'health':20,
+        'max_health':20,
+        'mana':20,
+        'max_mana':20,
         'inventory':[1,2],
         'level':1,
         'class':player_class,
@@ -120,6 +135,50 @@ def create_player(player_name,player_class):
 
     player_data[player_name] = info
     save_player(player_name)
+#
+#
+#
+#
+#
+#Receive Function
+def receive(connection):
+    data = str()
+    data_full = str()
+    
+    while True:
+        data = connection.recv(1024)
+        data = data.rstrip('\n')
+        data = data.rstrip('\r')
+        return data
+#
+#
+#
+#
+#
+#Player Handling Function
+def player_handler(conn,addr):
+    global name
+    username = str()
+    password = str()
+    
+    conn.sendall(name+' Server v'+version+'\n')
+    conn.sendall('------------------------------------\n')
+    conn.sendall('Please log in, or enter the username you wish to use\n')
+
+    while True:
+        conn.sendall('Username:')
+        username = receive(conn)
+        conn.sendall('Password:')
+        password = receive(conn)
+
+        if username in player_data:
+            if password = player_passwords[username]:
+                conn.sendall('Successfully logged in as '+username)
+            else:
+                conn.sendall('Incorrect password for user <'+username+'>')
+        else:
+            conn.sendall('The user <'+username+'> does not exist')
+            conn.sendall('Would you like to create an account with
 #
 #
 #
@@ -198,11 +257,12 @@ players = os.listdir(player_dir)
 print 'Preparing to load '+str(len(players))+' players...'
 time.sleep(2)
 for i in range(0,len(players)):
-    success = load_player(players[i])
-    if success:
-        print players[i]+' [ OK ]'
-    else:
-        print players[i]+' [FAIL]'
+    if not '.' in players[i]:
+        success = load_player(players[i])
+        if success:
+            print players[i]+' [ OK ]'
+        else:
+            print players[i]+' [FAIL]'
 #Load Room Data
 print 'Loading room data'
 rooms = os.listdir(room_dir)
@@ -214,3 +274,49 @@ for i in range(1,len(rooms)):
         print 'ID '+str(i)+' [ OK ]'
     else:
         print 'ID '+str(i)+' [FAIL]'
+#
+#
+#
+#
+#
+#Server Setup
+print 'Setting up the socket',
+try:
+    s = socket.socket()
+except:
+    print ' [FAIL]'
+    sys.exit(0)
+else:
+    print ' [ OK ]'
+
+print 'Binding the socket to host port 8080'
+try:
+    s.bind((host,port))
+except:
+    print ' [FAIL]'
+    sys.exit(0)
+else:
+    print ' [ OK ]'
+
+try:
+    s.listen(5)
+except Exception,e:
+    print 'Failed to put the server into listening mode'
+    print str(e)
+    sys.exit(0)
+
+print 'The server will now listen for new connections'
+print ''
+print 'System Log'
+print '-----------------------------------------------'
+#
+#
+#
+#
+#
+#Main Listen Loop
+while True:
+    conn,addr = s.accept()
+
+    print 'New connection: '+str(addr)+' - Pushing to player handler'
+    thread.start_new_thread(player_handler,(conn,addr))

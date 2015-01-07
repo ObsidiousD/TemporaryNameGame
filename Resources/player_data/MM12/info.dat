@@ -1,1 +1,1 @@
-{"sp_attack": 15, "agility": 10, "strength": 10, "defense": 10, "inventory": [1, 2], "level": 1, "bosses_killed": 0, "sp_defense": 15, "class": "Mage", "enemies_killed": 0}
+{"agility": 10, "sp_defense": 15, "enemies_killed": 0, "defense": 10, "max_health": 20, "strength": 10, "max_mana": 20, "mana": 20, "level": 1, "class": "Mage", "sp_attack": 15, "health": 20, "inventory": [1, 2], "bosses_killed": 0}
