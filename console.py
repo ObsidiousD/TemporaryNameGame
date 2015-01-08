@@ -73,6 +73,7 @@ def add_item():
     item_id = int(raw_input('Item ID: '))
     name = raw_input('Item name: ')
     items[item_id] = {}
+    items[item_id]['name'] = name
     print 'Description:'
     while True:
         text = raw_input('')

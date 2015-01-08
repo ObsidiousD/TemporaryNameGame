@@ -17,6 +17,7 @@ resource_dir = local_dir+'Resources/'
 player_dir = local_dir+'Resources/player_data/'
 room_dir = local_dir+'Resources/room_data/'
 enemy_dir = local_dir+'Resources/enemy_data/'
+item_dir = local_dir+'Resources/item_list.dat'
 
 host = ''
 port = 8080
@@ -40,6 +41,20 @@ You receive 10 extra agility points
 You receive 5 SP attack points and 5 SP defense points
 
 '''
+#
+#
+#
+#
+#
+#In List Function
+def in_list(obj,key):
+    counter = int()
+    
+    for i in range(0,len(obj)):
+        t = obj[i]
+        if t == key:
+            counter = counter+1
+    return counter
 #
 #
 #
@@ -308,6 +323,40 @@ Press <RETURN> to exit this menu
 #
 #
 #
+#Send Inventory Function
+def send_inventory(conn,user):
+    global player_data
+    global item_data
+    inventory = {}
+
+    while True:
+        for i in range(0,len(player_data[user]['inventory'])):
+            item = str(player_data[user]['inventory'][i])
+            if not item in inventory:
+                inventory[item] = {
+                    'name':item_data[item]['name'],
+                    'qty':str(in_list(player_data[user]['inventory'],int(item)))
+                    }
+        clear_player_screen(conn)
+
+        conn.sendall('------------ Inventory ------------\n')
+        for i in range(0,len(inventory)):
+            item = str(player_data[user]['inventory'][i])
+            conn.sendall(inventory[item]['name']+' ('+inventory[item]['qty']+')\n')
+        conn.sendall('-----------------------------------\n')
+        conn.sendall('Type "help" for help\n')
+        conn.sendall('-----------------------------------\n')
+        conn.sendall('>')
+
+        command = receive(conn)
+
+        if command == 'exit' or command == '':
+            return True
+#
+#
+#
+#
+#
 #Move Player Function
 def move_player(conn,current,direction):
     global room_data
@@ -374,7 +423,12 @@ def player_handler(conn,addr):
             direction = command[3:]
             current_room = move_player(conn,current_room, direction)
             clear_player_screen(conn)
-            send_room(conn,current_room,username)            
+            send_room(conn,current_room,username)
+
+        if command == 'inventory':
+            send_inventory(conn,username)
+            clear_player_screen(conn)
+            send_room(conn,current_room,username)
 #
 #
 #
@@ -484,6 +538,17 @@ for i in range(0,len(rooms)):
         print 'ID '+str(i)+' [ OK ]'
     else:
         print 'ID '+str(i)+' [FAIL]'
+#Load Items
+print 'Loading item data',
+try:
+    filein = open(item_dir,'r')
+    item_data = json.loads(filein.read())
+    filein.close()
+except:
+    print ' [FAIL]'
+    sys.exit(0)
+else:
+    print ' [ OK ]'
 #
 #
 #
