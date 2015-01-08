@@ -8,6 +8,7 @@ import time
 import json
 import sys
 import string
+import webbrowser
 
 name = 'Game Thing'
 version = '0.1'
@@ -25,6 +26,7 @@ player_data = {}
 player_passwords = {}
 room_data = {}
 enemy_data = {}
+item_data = {}
 
 class_chart = '''
 
@@ -306,6 +308,39 @@ Press <RETURN> to exit this menu
 #
 #
 #
+#Move Player Function
+def move_player(conn,current,direction):
+    global room_data
+    current = str(current)
+    direction = string.lower(direction)
+
+    if direction == 'north':
+        if room_data[current]['north'] == '1':
+            return room_data[current]['north_id']
+        else:
+            return current
+    elif direction == 'south':
+        if room_data[current]['south'] == '1':
+            return room_data[current]['south_id']
+        else:
+            return current
+    elif direction == 'east':
+        if room_data[current]['east'] == '1':
+            return room_data[current]['east_id']
+        else:
+            return current
+    elif direction == 'west':
+        if room_data[current]['west'] == '1':
+            return room_data[current]['west_id']
+        else:
+            return current
+    else:
+        return current
+#
+#
+#
+#
+#
 #Player Handling Function
 def player_handler(conn,addr):
     global name
@@ -321,7 +356,7 @@ def player_handler(conn,addr):
 
     while True:
         conn.sendall('Command >')
-        command = receive(conn)
+        command = string.lower(receive(conn))
 
         if command == 'help':
             send_help(conn)
@@ -337,8 +372,9 @@ def player_handler(conn,addr):
 
         if command[:3] == 'go ':
             direction = command[3:]
-            move_player(current, direction)
-            
+            current_room = move_player(conn,current_room, direction)
+            clear_player_screen(conn)
+            send_room(conn,current_room,username)            
 #
 #
 #
@@ -411,6 +447,20 @@ else:
         print 'ERROR: Server setup has failed'
     else:
         print '[ OK ]'
+#Check For Item Data
+print 'Item Data',
+if os.path.isfile(resource_dir+'item_list.dat'):
+    print ' [ OK ]'
+else:
+    print ' [FAIL]'
+    print 'Creating item list...',
+    try:
+        fileout = open(resource_dir+'item_list.dat','w')
+        fileout.close()
+    except:
+        print ' [FAIL]'
+        sys.exit(0)
+    print ' [ OK ]'
 #Load Player Data
 print 'Loading player data...'
 players = os.listdir(player_dir)
