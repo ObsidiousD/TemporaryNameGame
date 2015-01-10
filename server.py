@@ -170,7 +170,10 @@ def create_player(player_name,player_password,player_class):
         'sp_attack':10,
         'sp_defense':10,
         'enemies_killed':0,
-        'bosses_killed':0
+        'bosses_killed':0,
+        'equipped_weapon':0,
+        'equipped_shield':0,
+        'equipped_item':0
         }
 
     if player_class == 'Warrior':
@@ -312,9 +315,39 @@ def send_help(conn):
 -------------------- Help Menu ---------------------
 Go - Travel north, south, east, or west, as long as
      the room has paths there.
+
+Inventory - View and edit your inventory
+
+Help - Display this menu
+
+Exit - Log out of the game
 ----------------------------------------------------
 Press <RETURN> to exit this menu
 ''')
+    receive(conn)
+    clear_player_screen(conn)
+    return
+#
+#
+#
+#
+#
+#View Item Function
+def view_item(conn,item):
+    global item_data
+    item = str(item)
+    
+    clear_player_screen(conn)
+    conn.sendall('------------ '+item_data[item]['name']+' ------------\n')
+    conn.sendall('Type: '+item_data[item]['type'])
+    conn.sendall('Attack: '+str(item_data[item]['attack'])+'\n')
+    conn.sendall('Defense: '+str(item_data[item]['defense'])+'\n')
+    conn.sendall('Health: '+str(item_data[item]['health'])+'\n')
+    conn.sendall('Mana: '+str(item_data[item]['mana'])+'\n')
+    conn.sendall('------------ Description ------------\n')
+    conn.sendall(item_data[item]['desc'].replace('\\n','\n')+'\n')
+    conn.sendall('-------------------------------------\n')
+    conn.sendall('Press <RETURN> to exit')
     receive(conn)
     clear_player_screen(conn)
     return
@@ -327,9 +360,10 @@ Press <RETURN> to exit this menu
 def send_inventory(conn,user):
     global player_data
     global item_data
-    inventory = {}
+    inventory_message = 'Type "help" for help\n'
 
     while True:
+        inventory = {}
         for i in range(0,len(player_data[user]['inventory'])):
             item = str(player_data[user]['inventory'][i])
             if not item in inventory:
@@ -340,18 +374,98 @@ def send_inventory(conn,user):
         clear_player_screen(conn)
 
         conn.sendall('------------ Inventory ------------\n')
+        if len(inventory) == 0:
+            conn.sendall('You don\'t have any items\n')
         for i in range(0,len(inventory)):
             item = str(player_data[user]['inventory'][i])
-            conn.sendall(inventory[item]['name']+' ('+inventory[item]['qty']+')\n')
+            conn.sendall(item+' | '+inventory[item]['name']+' ('+inventory[item]['qty']+')\n')
         conn.sendall('-----------------------------------\n')
-        conn.sendall('Type "help" for help\n')
+        conn.sendall(inventory_message)
         conn.sendall('-----------------------------------\n')
         conn.sendall('>')
 
-        command = receive(conn)
+        command = string.lower(receive(conn))
 
         if command == 'exit' or command == '':
             return True
+
+        if command[:5] == 'drop ':
+            item = int(command[5:])
+            player_data[user]['inventory'].remove(item)
+            save_player(user)
+            inventory_message = 'Dropped the '+item_data[str(item)]['name']+'\n'
+
+        if command[:13] == 'equip weapon ':
+            item = str(command[13:])
+            if item_data[item]['type'] == 'Weapon':
+                if int(item) in player_data[user]['inventory']:
+                    player_data[user]['strength'] = player_data[user]['strength']-item_data[str(player_data[user]['equipped_weapon'])]['attack']
+                    player_data[user]['strength'] = player_data[user]['strength']+item_data[item]['attack']
+                    player_data[user]['equipped_weapon'] = item
+                    save_player(user)
+                    inventory_message = 'Equipped the '+item_data[item]['name']+'\n'
+                else:
+                    inventory_message = 'You don\'t own a '+item_data[item]['name']+'\n'
+            else:
+                inventory_message = 'No Patrick, a '+item_data[item]['name']+' is not a weapon\n'
+
+        if command == 'unequip weapon':
+            item = str(player_data[user]['equipped_weapon'])
+            player_data[user]['strength'] = player_data[user]['strength']-item_data[str(player_data[user]['equipped_weapon'])]['attack']
+            player_data[user]['equipped_weapon'] = 0
+            save_player(user)
+            inventory_message = 'Unequipped the '+item_data[item]['name']+'\n'
+
+        if command[:13] == 'equip shield ':
+            item = str(command[13:])
+            if item_data[item]['type'] == 'Shield':
+                if int(item) in player_data[user]['inventory']:
+                    player_data[user]['defense'] = player_data[user]['defense']-item_data[str(player_data[user]['equipped_shield'])]['defense']
+                    player_data[user]['defense'] = player_data[user]['defense']+item_data[item]['defense']
+                    player_data[user]['equipped_weapon'] = item
+                    save_player(user)
+                    inventory_message = 'Equipped the '+item_data[item]['name']+'\n'
+                else:
+                    inventory_message = 'You don\'t own a '+item_data[item]['name']+'\n'
+            else:
+                inventory_message = 'No patrick, a '+item_data[item]['name']+' is not a shield\n'
+
+        if command == 'unequip shield':
+            item = str(player_data[user]['equipped_shield'])
+            player_data[user]['defense'] = player_data[user]['defense']-item_data[str(player_data[user]['equipped_shield'])]['defense']
+            player_data[user]['equipped_shield'] = 0
+            save_player(user)
+            inventory_message = 'Unequipped the '+item_data[item]['name']+'\n'
+
+        if command[:5] == 'view ':
+            item = command[5:]
+            if int(item) in player_data[user]['inventory']:
+                if str(item) in item_data:
+                    view_item(conn,item)
+                else:
+                    inventory_message = 'This item does not exist\n'
+            else:
+                inventory_message = 'You don\'t have this item\n'
+#
+#
+#
+#
+#
+#Send Stats Function
+def send_stats(conn,user):
+    clear_player_screen(conn)
+    conn.sendall('------------ Info ------------\n')
+    conn.sendall('Name: '+user+'\n')
+    conn.sendall('Health: ('+str(player_data[user]['health'])+'/'+str(player_data[user]['max_health'])+')\n')
+    conn.sendall('Mana: ('+str(player_data[user]['mana'])+'/'+str(player_data[user]['max_mana'])+')\n')
+    conn.sendall('\n')
+    conn.sendall('Strength: '+str(player_data[user]['strength'])+'\n')
+    conn.sendall('Agility: '+str(player_data[user]['agility'])+'\n')
+    conn.sendall('Defense: '+str(player_data[user]['defense'])+'\n')
+    conn.sendall('------------------------------\n')
+    conn.sendall('Press <RETURN> to exit')
+    receive(conn)
+    clear_player_screen(conn)
 #
 #
 #
@@ -428,6 +542,10 @@ def player_handler(conn,addr):
         if command == 'inventory':
             send_inventory(conn,username)
             clear_player_screen(conn)
+            send_room(conn,current_room,username)
+
+        if command == 'stats':
+            send_stats(conn,username)
             send_room(conn,current_room,username)
 #
 #
