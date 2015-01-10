@@ -378,7 +378,7 @@ def send_inventory(conn,user):
             conn.sendall('You don\'t have any items\n')
         for i in range(0,len(inventory)):
             item = str(player_data[user]['inventory'][i])
-            conn.sendall(item+' | '+inventory[item]['name']+' ('+inventory[item]['qty']+')\n')
+            conn.sendall(item+' | '+inventory[item]['name']+' (x'+inventory[item]['qty']+') ['+item_data[item]['name'][:1]+']\n')
         conn.sendall('-----------------------------------\n')
         conn.sendall(inventory_message)
         conn.sendall('-----------------------------------\n')
@@ -436,6 +436,19 @@ def send_inventory(conn,user):
             player_data[user]['equipped_shield'] = 0
             save_player(user)
             inventory_message = 'Unequipped the '+item_data[item]['name']+'\n'
+
+        if command[:4] == 'use ':
+            item = str(command[4:])
+            if item_data[item]['type'] == 'Item':
+                if int(item) in player_data[user]['inventory']:
+                    player_data[user]['health'] = player_data[user]['health']+item_data[item]['health']
+                    player_data[user]['mana'] = player_data[user]['mana']+item_data[item]['mana']
+                    save_player(user)
+                    inventory_message = 'Used the '+item_data[item]['name']+'\n'
+                else:
+                    inventory_message = 'You don\'t have a '+item_data[item]['name']+'\n'
+            else:
+                inventory_message = 'You can\'t "use" a '+item[item]['type']+'\n'
 
         if command[:5] == 'view ':
             item = command[5:]
