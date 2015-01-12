@@ -173,7 +173,8 @@ def create_player(player_name,player_password,player_class):
         'bosses_killed':0,
         'equipped_weapon':0,
         'equipped_shield':0,
-        'equipped_item':0
+        'equipped_item':0,
+        'messages':[]
         }
 
     if player_class == 'Warrior':
@@ -303,6 +304,14 @@ def send_room(conn,room_id,user):
     conn.sendall('---------------------------------------------\n')
     conn.sendall(user+' | Health ('+str(player_data[user]['health'])+'/'+str(player_data[user]['max_health'])+') | Mana ('+str(player_data[user]['mana'])+'/'+str(player_data[user]['max_mana'])+')\n')
     conn.sendall('---------------------------------------------\n')
+
+    if len(player_data[user]['messages']) > 1:
+        conn.sendall(str(len(player_data[user]['messages']))+' new messages\n')
+    elif len(player_data[user]['messages']) == 1:
+        conn.sendall('1 new message\n')
+    else:
+        conn.sendall('No new messages\n')
+    conn.sendall('---------------------------------------------\n')
 #
 #
 #
@@ -321,6 +330,14 @@ Inventory - View and edit your inventory
 Help - Display this menu
 
 Exit - Log out of the game
+
+Refresh - Refresh the menu
+
+Stats - View your stats
+
+Messages - View your received messages
+
+Send Message - Send a message to another player
 ----------------------------------------------------
 Press <RETURN> to exit this menu
 ''')
@@ -339,7 +356,7 @@ def view_item(conn,item):
     
     clear_player_screen(conn)
     conn.sendall('------------ '+item_data[item]['name']+' ------------\n')
-    conn.sendall('Type: '+item_data[item]['type'])
+    conn.sendall('Type: '+item_data[item]['type']+'\n')
     conn.sendall('Attack: '+str(item_data[item]['attack'])+'\n')
     conn.sendall('Defense: '+str(item_data[item]['defense'])+'\n')
     conn.sendall('Health: '+str(item_data[item]['health'])+'\n')
@@ -378,7 +395,7 @@ def send_inventory(conn,user):
             conn.sendall('You don\'t have any items\n')
         for i in range(0,len(inventory)):
             item = str(player_data[user]['inventory'][i])
-            conn.sendall(item+' | '+inventory[item]['name']+' (x'+inventory[item]['qty']+') ['+item_data[item]['name'][:1]+']\n')
+            conn.sendall(item+' | '+inventory[item]['name']+' (x'+inventory[item]['qty']+') ['+item_data[item]['type'][:1]+']\n')
         conn.sendall('-----------------------------------\n')
         conn.sendall(inventory_message)
         conn.sendall('-----------------------------------\n')
@@ -399,11 +416,17 @@ def send_inventory(conn,user):
             item = str(command[13:])
             if item_data[item]['type'] == 'Weapon':
                 if int(item) in player_data[user]['inventory']:
-                    player_data[user]['strength'] = player_data[user]['strength']-item_data[str(player_data[user]['equipped_weapon'])]['attack']
-                    player_data[user]['strength'] = player_data[user]['strength']+item_data[item]['attack']
-                    player_data[user]['equipped_weapon'] = item
-                    save_player(user)
-                    inventory_message = 'Equipped the '+item_data[item]['name']+'\n'
+                    if player_data[user]['class'] in item_data[item]['class']:
+                        if player_data[user]['level'] >= item_data[item]['level']:
+                            player_data[user]['strength'] = player_data[user]['strength']-item_data[str(player_data[user]['equipped_weapon'])]['attack']
+                            player_data[user]['strength'] = player_data[user]['strength']+item_data[item]['attack']
+                            player_data[user]['equipped_weapon'] = item
+                            save_player(user)
+                            inventory_message = 'Equipped the '+item_data[item]['name']+'\n'
+                        else:
+                            inventory_message = 'You need to be at least level '+str(item_data[item]['level'])+' to use this\n'
+                    else:
+                        inventory_message = 'A '+player_class[user]['class']+' can\'t use this\n'
                 else:
                     inventory_message = 'You don\'t own a '+item_data[item]['name']+'\n'
             else:
@@ -420,11 +443,17 @@ def send_inventory(conn,user):
             item = str(command[13:])
             if item_data[item]['type'] == 'Shield':
                 if int(item) in player_data[user]['inventory']:
-                    player_data[user]['defense'] = player_data[user]['defense']-item_data[str(player_data[user]['equipped_shield'])]['defense']
-                    player_data[user]['defense'] = player_data[user]['defense']+item_data[item]['defense']
-                    player_data[user]['equipped_weapon'] = item
-                    save_player(user)
-                    inventory_message = 'Equipped the '+item_data[item]['name']+'\n'
+                    if player_data[user]['class'] in item_data[item]['class']:
+                        if player_data[user]['level'] >= item_data[item]['level']:
+                            player_data[user]['defense'] = player_data[user]['defense']-item_data[str(player_data[user]['equipped_shield'])]['defense']
+                            player_data[user]['defense'] = player_data[user]['defense']+item_data[item]['defense']
+                            player_data[user]['equipped_weapon'] = item
+                            save_player(user)
+                            inventory_message = 'Equipped the '+item_data[item]['name']+'\n'
+                        else:
+                            inventory_message = 'You need to be at least level '+str(item_data[item]['level'])+' to use this\n'
+                    else:
+                        inventory_message = 'A '+player_class[user]['class']+' can\'t use this\n'
                 else:
                     inventory_message = 'You don\'t own a '+item_data[item]['name']+'\n'
             else:
@@ -442,7 +471,11 @@ def send_inventory(conn,user):
             if item_data[item]['type'] == 'Item':
                 if int(item) in player_data[user]['inventory']:
                     player_data[user]['health'] = player_data[user]['health']+item_data[item]['health']
+                    if player_data[user]['health'] > player_data[user]['max_health']:
+                        player_data[user]['health'] = player_data[user]['max_health']
                     player_data[user]['mana'] = player_data[user]['mana']+item_data[item]['mana']
+                    if player_data[user]['mana'] > player_data[user]['max_mana']:
+                        player_data[user]['mana'] = player_data[user]['max_mana']
                     save_player(user)
                     inventory_message = 'Used the '+item_data[item]['name']+'\n'
                 else:
@@ -451,10 +484,27 @@ def send_inventory(conn,user):
                 inventory_message = 'You can\'t "use" a '+item[item]['type']+'\n'
 
         if command[:5] == 'view ':
-            item = command[5:]
+            item = str(command[5:])
             if int(item) in player_data[user]['inventory']:
                 if str(item) in item_data:
                     view_item(conn,item)
+                else:
+                    inventory_message = 'This item does not exist\n'
+            else:
+                inventory_message = 'You don\'t have this item\n'
+
+        if command[:5] == 'give ':
+            item = command[5:]
+            if int(item) in player_data[user]['inventory']:
+                if str(item) in item_data:
+                    conn.sendall('Give the '+item_data[item]['name']+' to which player?\nPlayer name >')
+                    target_player = receive(conn)
+                    if target_player in player_data:
+                        player_data[user]['inventory'].remove(int(item))
+                        player_data[target_player]['inventory'].append(int(item))
+                        inventory_message = 'Gave the '+item_data[item]['name']+' to '+target_player+'\n'
+                    else:
+                        inventory_message = target_player+' is not a registered username\n'
                 else:
                     inventory_message = 'This item does not exist\n'
             else:
@@ -479,6 +529,133 @@ def send_stats(conn,user):
     conn.sendall('Press <RETURN> to exit')
     receive(conn)
     clear_player_screen(conn)
+#
+#
+#
+#
+#
+#Send Message Function
+def send_message(conn,user):
+    global player_data
+    message_full = {
+        'to':'',
+        'from':'',
+        'subject':'',
+        'message':''
+        }
+    
+    clear_player_screen(conn)
+    conn.sendall('------------ Message ------------\n')
+    conn.sendall('From: '+user+'\n')
+    message_full['from'] = user
+    conn.sendall('To: ')
+    message_full['to'] = receive(conn)
+    
+    if not message_full['to'] in player_data:
+        conn.sendall('This player does not exist\n')
+        time.sleep(1)
+        clear_player_screen(conn)
+        return
+    conn.sendall('Subject: ')
+    message_full['subject'] = receive(conn)
+    conn.sendall('---------------------------------\n')
+    conn.sendall('Please type your message below. When\n')
+    conn.sendall('you are done, send a blank line.\n')
+    conn.sendall('---------------------------------\n')
+
+    while True:
+        message = receive(conn)
+        if message == '':
+            break
+        message_full['message'] = message_full['message']+message+'\n'
+    conn.sendall('---------------------------------\n')
+    player_data[message_full['to']]['messages'].append(message_full)
+    save_player(message_full['to'])
+    conn.sendall('Thank you, your message has been delivered\n')
+    time.sleep(1)
+    clear_player_screen(conn)
+    return
+#
+#
+#
+#
+#
+#View Message Function
+def view_message(conn,user,message_id):
+    global player_data
+    
+    clear_player_screen(conn)
+    conn.sendall('------------------------------------\n')
+    conn.sendall('From: '+player_data[user]['messages'][message_id]['from']+'\n')
+    conn.sendall('Subject: '+player_data[user]['messages'][message_id]['subject']+'\n')
+    conn.sendall('------------------------------------\n')
+    conn.sendall(player_data[user]['messages'][message_id]['message'])
+    conn.sendall('------------------------------------\n')
+    conn.sendall('Press <RETURN> to exit')
+    receive(conn)
+#
+#
+#
+#
+#
+#View Messages Function
+def list_messages(conn,user):
+    global player_data
+    messages_help = '''
+--------------------------------------------
+View <message ID> - View a messages contents
+
+Delete <messaage ID> - Delete a message
+
+Exit - Exit the messages menu
+
+Help - Display this menu
+--------------------------------------------
+'''
+    
+    interface_message = 'Type "exit" to quit this menu\n'
+
+    while True:
+        clear_player_screen(conn)
+        conn.sendall('------------ '+user+'\'s Messages ------------\n')
+        if len(player_data[user]['messages']) > 0:
+            for i in range(0,len(player_data[user]['messages'])):
+                conn.sendall(str(i)+' | '+player_data[user]['messages'][i]['from']+' | '+player_data[user]['messages'][i]['subject']+'\n')
+        else:
+            conn.sendall('No new messages\n')
+        conn.sendall('--------------------------------------------------\n')
+        conn.sendall(interface_message)
+        conn.sendall('--------------------------------------------------\n')
+        conn.sendall('>')
+        command = receive(conn)
+
+        if command == 'exit':
+            clear_player_screen(conn)
+            return
+
+        if command[:5] == 'view ':
+            try:
+                view_message(conn,user,int(command[5:]))
+            except:
+                interface_message = 'No message with ID '+command[5:]+'\n'
+            else:
+                interface_message = 'Type "exit" to quit this menu\n'
+
+        if command[:7] == 'delete ':
+            message_id = int(command[7:])
+            try:
+                player_data[user]['messages'][message_id] = 'REMOVE'
+                player_data[user]['messages'].remove('REMOVE')
+                save_player(user)
+            except:
+                interface_message = 'Failed to delete the message\n'
+            else:
+                interface_message = 'Deleted the message\n'
+
+        if command == 'help':
+            conn.sendall(messages_help+'\n')
+            conn.sendall('Press <RETURN> to exit')
+            receive(conn)
 #
 #
 #
@@ -559,6 +736,19 @@ def player_handler(conn,addr):
 
         if command == 'stats':
             send_stats(conn,username)
+            send_room(conn,current_room,username)
+
+        if command == 'send message':
+            send_message(conn,username)
+            send_room(conn,current_room,username)
+
+        if command == 'messages' or command == 'view messages':
+            list_messages(conn,username)
+            clear_player_screen(conn)
+            send_room(conn,current_room,username)
+
+        if command == 'refresh':
+            clear_player_screen(conn)
             send_room(conn,current_room,username)
 #
 #
@@ -689,6 +879,7 @@ else:
 print 'Setting up the socket',
 try:
     s = socket.socket()
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 except:
     print ' [FAIL]'
     sys.exit(0)

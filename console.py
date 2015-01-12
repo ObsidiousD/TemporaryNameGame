@@ -50,6 +50,12 @@ def create_room():
     fileout.close()
     print 'Done'
     return True
+#
+#
+#
+#
+#
+#Add Item Function
 def add_item():
     global resource_dir
     items = {}
@@ -83,12 +89,21 @@ def add_item():
     items[item_id]['desc'] = fulldesc
 
     items[item_id]['type'] = raw_input('Item Type: ')
+    items[item_id]['level'] = int(raw_input('Item Level: '))
     items[item_id]['attack'] = int(raw_input('Item Attack: '))
     items[item_id]['defense'] = int(raw_input('Item Defense: '))
     items[item_id]['health'] = int(raw_input('Item Health: '))
     items[item_id]['mana'] = int(raw_input('Item Mana: '))
     items[item_id]['crit'] = int(raw_input('Critical chance (out of 100): '))
     items[item_id]['effect'] = int(raw_input('Effect ID: '))
+
+    items[item_id]['class'] = []
+    if raw_input('Warrior Usable (y/n): ') == 'y':
+        items[item_id]['class'].append('Warrior')
+    if raw_input('Ranger Usable (y/n): ') == 'y':
+        items[item_id]['class'].append('Ranger')
+    if raw_input('Mage Usable (y/n): ') == 'y':
+        items[item_id]['class'].append('Mage')
 
     print 'Saving item...',
     try:
