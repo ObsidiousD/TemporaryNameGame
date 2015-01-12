@@ -408,9 +408,13 @@ def send_inventory(conn,user):
 
         if command[:5] == 'drop ':
             item = int(command[5:])
-            player_data[user]['inventory'].remove(item)
-            save_player(user)
-            inventory_message = 'Dropped the '+item_data[str(item)]['name']+'\n'
+
+            if item == 1 or item == 2:
+                inventory_message = 'Think of the poor admins...\n'
+            else:
+                player_data[user]['inventory'].remove(item)
+                save_player(user)
+                inventory_message = 'Dropped the '+item_data[str(item)]['name']+'\n'
 
         if command[:13] == 'equip weapon ':
             item = str(command[13:])
@@ -653,6 +657,7 @@ Help - Display this menu
                 interface_message = 'Deleted the message\n'
 
         if command == 'help':
+            clear_player_screen(conn)
             conn.sendall(messages_help+'\n')
             conn.sendall('Press <RETURN> to exit')
             receive(conn)
@@ -865,7 +870,7 @@ files = os.listdir(item_dir)
 for i in range(0,len(files)):
     if not files[i][:1] == '.':
         try:
-            filein = open(files[i])
+            filein = open(item_dir+str(files[i]),'r')
             item_data[str(files[i])] = json.loads(filein.read())
             filein.close()
         except:

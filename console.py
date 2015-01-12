@@ -9,6 +9,7 @@ resource_dir = local_dir+'Resources/'
 player_dir = local_dir+'Resources/player_data/'
 room_dir = local_dir+'Resources/room_data/'
 enemy_dir = local_dir+'Resources/enemy_data/'
+item_dir = local_dir+'Resources/item_data/'
 #
 #
 #
@@ -58,65 +59,47 @@ def create_room():
 #Add Item Function
 def add_item():
     global resource_dir
-    items = {}
     fulldesc = str()
     
-    try:
-        filein = open(resource_dir+'item_list.dat','r')
-        items = filein.read()
-        filein.close()
-        os.remove(resource_dir+'item_list.dat')
-        items = json.loads(items)
-    except:
-        print 'Pre-existing item file was corrupt | A new one will be created'
-        try:
-            filein = open(resource_dir+'item_list.dat','w')
-            filein.close()
-            items = {}
-        except:
-            print 'Couldn\'t create the new file'
-            return False
     item_id = int(raw_input('Item ID: '))
+    item_id = str(item_id)
     name = raw_input('Item name: ')
-    items[item_id] = {}
-    items[item_id]['name'] = name
+    item = {}
+    item['name'] = name
     print 'Description:'
     while True:
         text = raw_input('')
         if text == '':
             break
         fulldesc = fulldesc+text+'\\n'
-    items[item_id]['desc'] = fulldesc
+    item['desc'] = fulldesc
 
-    items[item_id]['type'] = raw_input('Item Type: ')
-    items[item_id]['level'] = int(raw_input('Item Level: '))
-    items[item_id]['attack'] = int(raw_input('Item Attack: '))
-    items[item_id]['defense'] = int(raw_input('Item Defense: '))
-    items[item_id]['health'] = int(raw_input('Item Health: '))
-    items[item_id]['mana'] = int(raw_input('Item Mana: '))
-    items[item_id]['crit'] = int(raw_input('Critical chance (out of 100): '))
-    items[item_id]['effect'] = int(raw_input('Effect ID: '))
+    item['type'] = raw_input('Item Type: ')
+    item['level'] = int(raw_input('Item Level: '))
+    item['attack'] = int(raw_input('Item Attack: '))
+    item['defense'] = int(raw_input('Item Defense: '))
+    item['health'] = int(raw_input('Item Health: '))
+    item['mana'] = int(raw_input('Item Mana: '))
+    item['crit'] = int(raw_input('Critical chance (out of 100): '))
+    item['effect'] = int(raw_input('Effect ID: '))
 
-    items[item_id]['class'] = []
+    item['class'] = []
     if raw_input('Warrior Usable (y/n): ') == 'y':
-        items[item_id]['class'].append('Warrior')
+        item['class'].append('Warrior')
     if raw_input('Ranger Usable (y/n): ') == 'y':
-        items[item_id]['class'].append('Ranger')
+        item['class'].append('Ranger')
     if raw_input('Mage Usable (y/n): ') == 'y':
-        items[item_id]['class'].append('Mage')
+        item['class'].append('Mage')
 
-    print 'Saving item...',
+    print 'Saving item...'
     try:
-        items_str = json.dumps(items)
-        filein = open(resource_dir+'item_list.dat','w')
-        filein.write(items_str)
-        filein.close()
+        fileout = open(item_dir+item_id,'w')
+        fileout.write(json.dumps(item))
+        fileout.close()
     except:
         print 'Failed'
-        return False
     else:
         print 'Success'
-        return True
 #
 #
 #
