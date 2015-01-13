@@ -17,7 +17,7 @@ resource_dir = local_dir+'Resources/'
 player_dir = local_dir+'Resources/player_data/'
 room_dir = local_dir+'Resources/room_data/'
 enemy_dir = local_dir+'Resources/enemy_data/'
-item_dir = local_dir+'Resources/item_list.dat'
+item_dir = local_dir+'Resources/item_data/'
 
 host = ''
 port = 8080
@@ -824,14 +824,13 @@ else:
         print '[ OK ]'
 #Check For Item Data
 print 'Item Data',
-if os.path.isfile(resource_dir+'item_list.dat'):
+if os.path.isdir(item_dir):
     print ' [ OK ]'
 else:
     print ' [FAIL]'
-    print 'Creating item list...',
+    print 'Creating item data folder...',
     try:
-        fileout = open(resource_dir+'item_list.dat','w')
-        fileout.close()
+        os.mkdir(item_dir)
     except:
         print ' [FAIL]'
         sys.exit(0)
@@ -853,23 +852,26 @@ print 'Loading room data'
 rooms = os.listdir(room_dir)
 print 'Preparing to load '+str(len(rooms))+' rooms...'
 time.sleep(2)
-for i in range(0,len(rooms)):
-    success = load_room(i)
-    if success:
-        print 'ID '+str(i)+' [ OK ]'
-    else:
-        print 'ID '+str(i)+' [FAIL]'
+if not rooms[i][:1] == '.':
+    for i in range(0,len(rooms)):
+        success = load_room(i)
+        if success:
+            print 'ID '+str(i)+' [ OK ]'
+        else:
+            print 'ID '+str(i)+' [FAIL]'
 #Load Items
-print 'Loading item data',
-try:
-    filein = open(item_dir,'r')
-    item_data = json.loads(filein.read())
-    filein.close()
-except:
-    print ' [FAIL]'
-    sys.exit(0)
-else:
-    print ' [ OK ]'
+print 'Loading item data'
+files = os.listdir(item_dir)
+for i in range(0,len(files)):
+    if not files[i][:1] == '.':
+        try:
+            filein = open(files[i])
+            item_data[str(files[i])] = json.loads(filein.read())
+            filein.close()
+        except:
+            print 'ID '+str(files[i])+' [FAIL]'
+        else:
+            print 'ID '+str(files[i])+' [ OK ]'
 #
 #
 #
