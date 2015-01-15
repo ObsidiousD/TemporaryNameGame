@@ -82,6 +82,7 @@ def add_item():
     item['mana'] = int(raw_input('Item Mana: '))
     item['crit'] = int(raw_input('Critical chance (out of 100): '))
     item['effect'] = int(raw_input('Effect ID: '))
+    item['phrase'] = raw_input('Item Attack Phrase: ')
 
     item['class'] = []
     if raw_input('Warrior Usable (y/n): ') == 'y':
@@ -100,6 +101,89 @@ def add_item():
         print 'Failed'
     else:
         print 'Success'
+#
+#
+#
+#
+#
+#Add Enemy Function
+def add_enemy():
+    enemy = {}
+    fulldesc = str()
+
+    enemy['name'] = raw_input('Enemy Name: ')
+    enemy['level'] = int(raw_input('Enemy Level: '))
+
+    print 'Enemy Description:'
+    while True:
+        text = raw_input('')
+        if text == '':
+            break
+        fulldesc = fulldesc+text+'\\n'
+    enemy['desc'] = fulldesc
+
+    enemy['attack_phrases'] = []
+    print 'Please enter a series of attack phrases'
+    print 'Enter a blank line when done'
+    while True:
+        phrase = raw_input('AP: ')
+        if phrase == '':
+            break
+        enemy['attack_phrases'].append(phrase)
+    enemy['health'] = int(raw_input('Enemy Health: '))
+    enemy['attack'] = int(raw_input('Enemy Attack: '))
+    enemy['defense'] = int(raw_input('Enemy Defense: '))
+    enemy['death_phrase'] = raw_input('Enemy Death Phrase: ')
+
+    print 'Saving enemy file...',
+    try:
+        fileout = open(enemy_dir+enemy['name'],'w')
+        fileout.write(json.dumps(enemy))
+        fileout.close()
+    except:
+        print 'Failed'
+    else:
+        print 'Success'
+#
+#
+#
+#
+#
+#Update Item Function
+def update_item(item_id):
+    global item_dir
+    item_id = str(item_id)
+
+    try:
+        filein = open(item_dir+item_id,'r')
+        item = json.loads(filein.read())
+        filein.close()
+    except:
+        return 'Failed to load item'
+
+    attribute = raw_input('Attribute to update: ')
+    try:
+        print item[attribute]
+        print ''
+    except:
+        print 'This item doesn\'t exist. Create it? (y/n)'
+    else:
+        print 'Do you wish to edit this? (y/n)'
+
+    resp = raw_input('> ')
+    if resp == 'n':
+        return False
+
+    item[attribute] = raw_input(attribute+': ')
+
+    try:
+        fileout = open(item_dir+item_id,'w')
+        fileout.write(json.dumps(item))
+        fileout.close()
+    except:
+        print 'Failed to save'
+    else:
+        print 'Saved'
 #
 #
 #

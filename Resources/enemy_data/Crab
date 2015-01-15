@@ -1,0 +1,1 @@
+{"name": "Crab", "level": 1, "death_phrase": "The crab falls to the ground, dead.", "attack": 5, "defense": 5, "health": 10, "attack_phrases": ["The crab snaps at you with it's claws!"], "desc": "Look's like dinner's going to be great! Not\\nreally, since you don't have to eat here,\\nbut that is one giant crab!\\n"}

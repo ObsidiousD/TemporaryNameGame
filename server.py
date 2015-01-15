@@ -9,6 +9,8 @@ import json
 import sys
 import string
 import webbrowser
+from random import randint
+from copy import deepcopy
 
 name = 'Game Thing'
 version = '0.1'
@@ -27,7 +29,10 @@ player_data = {}
 player_passwords = {}
 room_data = {}
 enemy_data = {}
+enemy_index = []
 item_data = {}
+kicklist = []
+banlist = []
 
 class_chart = '''
 
@@ -451,7 +456,7 @@ def send_inventory(conn,user):
                         if player_data[user]['level'] >= item_data[item]['level']:
                             player_data[user]['defense'] = player_data[user]['defense']-item_data[str(player_data[user]['equipped_shield'])]['defense']
                             player_data[user]['defense'] = player_data[user]['defense']+item_data[item]['defense']
-                            player_data[user]['equipped_weapon'] = item
+                            player_data[user]['equipped_shield'] = item
                             save_player(user)
                             inventory_message = 'Equipped the '+item_data[item]['name']+'\n'
                         else:
@@ -533,6 +538,151 @@ def send_stats(conn,user):
     conn.sendall('Press <RETURN> to exit')
     receive(conn)
     clear_player_screen(conn)
+#
+#
+#
+#
+#
+#Generate Enemy Function
+def generate_enemy(min_level,max_level,player_level):
+    global player_data
+    global enemy_data
+    global enemy_index
+    candidates = []
+
+    for i in range(0,len(enemy_index)-1):
+        enemy = enemy_data[enemy_index[i]]
+        if enemy['level'] <= player_level+3 and enemy['level'] >= player_level-3:
+            candidates.append(enemy['name'])
+    for i in range(0,len(candidates)-1):
+        enemy = enemy_data[candidates[i]]
+        if enemy['level'] > max_level or enemy['level'] < min_level:
+            candidates.remove(enemy['name'])
+
+    if len(candidates) == 0:
+        return None
+    num = randint(0,len(candidates)-1)
+    return candidates[num]
+#
+#
+#
+#
+#
+#Generate Player Attack Function
+def generate_player_attack(player,enemy):
+    power = player['strength']-(enemy['attack']/2)-randint(0,2)
+    if power <= 0:
+        power = randint(0,3)
+    return power
+#
+#
+#
+#
+#
+#Generate Enemy Attack Function
+def generate_enemy_attack(player,enemy):
+    power = enemy['attack']-(player['defense']/2)
+    if power <= 0:
+        power = randint(0,3)
+    return power
+#
+#
+#
+#
+#
+#Drop Item Function
+def drop_item():
+    return
+#
+#
+#
+#
+#
+#Start Battle Function
+def start_battle(user,room,conn):
+    global room_data
+    global player_data
+    global enemy_data
+    global item_data
+    room = str(room)
+    player_moved = False
+    min_enemy = room_data[room]['min_enemy']
+    max_enemy = room_data[room]['max_enemy']
+    player_level = int(player_data[user]['level'])
+    enemy_id = None
+    try:
+        enemy_id = generate_enemy(min_enemy,max_enemy,player_level)
+        enemy = deepcopy(enemy_data[enemy_id])
+    except Exception,e:
+        print 'Battle init for '+user+' with CAND '+str(enemy_id)+' failed - '+str(e)
+        return
+    else:
+        print 'Battle init for '+user+' with CAND '+enemy['name']+' - Currently in progress'
+    battle_message = 'You are attacked by a '+enemy['name']+'!'
+    clear_player_screen(conn)
+
+    if int(player_data[user]['equipped_weapon']) == 0:
+        conn.sendall('You have no weapons equipped, and are quickly\nslaughtered by the '+enemy['name']+'.\n')
+        conn.sendall('Press <RETURN> to revive in the main hallway')
+        receive(conn)
+        return False
+
+    while True:
+        clear_player_screen(conn)
+        conn.sendall('---------------------------------------------\n')
+        conn.sendall(enemy['name']+' | '+str(enemy['health'])+'\n')
+        conn.sendall('---------------------------------------------\n')
+        conn.sendall('\n'+battle_message+'\n')
+        conn.sendall('---------------------------------------------\n')
+        conn.sendall(user+' | ('+str(player_data[user]['health'])+'/'+str(player_data[user]['max_health'])+') | ('+str(player_data[user]['mana'])+'/'+str(player_data[user]['max_mana'])+')\n')
+        conn.sendall('---------------------------------------------\n')
+        conn.sendall('Command >')
+        command = str(receive(conn))
+
+        if command == 'attack':
+            power = generate_player_attack(player_data[user],enemy)
+            enemy['health'] = enemy['health']-power
+            clear_player_screen(conn)
+            conn.sendall('\n'+item_data[str(player_data[user]['equipped_weapon'])]['phrase']+'\n')
+            time.sleep(0.5)
+            conn.sendall('It did '+str(power)+' damage to the '+enemy['name']+'!\n')
+            time.sleep(1)
+            if enemy['health'] < 0:
+                enemy['health'] = 0
+            player_moved = True
+
+        if command == 'run':
+            escape_chance = randint(player_data[user]['agility'],50)
+            if escape_chance == 50:
+                conn.sendall('Escaped the fight!\n')
+                conn.sendall('Press <RETURN> to exit')
+                return True
+            else:
+                conn.sendall('You were unable to escape!\n')
+                time.sleep(1)
+                player_moved = True
+
+        if enemy['health'] == 0:
+            gold_gained = (enemy['level']*2)*10
+            conn.sendall('You defeated the '+enemy['name']+'!\n')
+            conn.sendall('You received '+str(gold_gained)+' gold!\n')
+            conn.sendall('\nPress <RETURN> to exit')
+            for i in range(0,gold_gained):
+                player_data[user]['inventory'].append(3)
+            receive(conn)
+            save_player(user)
+            clear_player_screen(conn)
+            return True
+
+        if player_moved:
+            power = generate_enemy_attack(player_data[user],enemy)
+            player_data[user]['health'] = player_data[user]['health']-power
+            battle_message = enemy['attack_phrases'][randint(0,len(enemy['attack_phrases'])-1)]+'\nIt does '+str(power)+' damage!'
+            if player_data[user]['health'] <= 0:
+                conn.sendall('\nYou were slain by the '+enemy['name']+'!\n')
+                conn.sendall('Press <RETURN> to revive in the main hall')
+                receive(conn)
+                return False
 #
 #
 #
@@ -661,6 +811,9 @@ Help - Display this menu
             conn.sendall(messages_help+'\n')
             conn.sendall('Press <RETURN> to exit')
             receive(conn)
+def revive_player(user):
+    player_data[user]['health'] = player_data[user]['max_health']
+    player_data[user]['mana'] = player_data[user]['max_mana']
 #
 #
 #
@@ -703,18 +856,35 @@ def move_player(conn,current,direction):
 def player_handler(conn,addr):
     global name
     global version
+    global kicklist
+    global banlist
     current_room = str(0)
     username = str()
+    status = 0
 
     clear_player_screen(conn)
     conn.sendall(name+' Server v'+version+'\n')
     conn.sendall('------------------------------------\n')
     username = player_login(conn,addr)
+
+    if username in banlist:
+        conn.sendall('You are currently banned from this server\n')
+        conn.sendall('If you believe this to be a mistake, feel\n')
+        conn.sendall('free to email martianmellow12@gmail.com\n')
+        conn.close()
+    
     send_room(conn,0,username)
 
     while True:
         conn.sendall('Command >')
         command = string.lower(receive(conn))
+
+        if username in kicklist:
+            kicklist.remove(username)
+            conn.sendall('\n You have been kicked from the server\n')
+            conn.sendall('You may rejoin, but please try to be respectful\n')
+            conn.sendall('to other players.\n')
+            conn.close()
 
         if command == 'help':
             send_help(conn)
@@ -753,6 +923,47 @@ def player_handler(conn,addr):
             send_room(conn,current_room,username)
 
         if command == 'refresh':
+            clear_player_screen(conn)
+            send_room(conn,current_room,username)
+
+        if command == 'fight':
+            clear_player_screen(conn)
+            sucess = start_battle(username,current_room,conn)
+            if not sucess:
+                current_room = 0
+                revive_player(username)
+                print 'Battle with '+username+' ended - WIN'
+            else:
+                print 'Battle with '+username+' ended - LOSS'
+            clear_player_screen(conn)
+            send_room(conn,current_room,username)
+
+        if command[:8] == 'elevate:' and command[8:] == 'yeetothemax':
+            status = 2
+            print 'User '+username+' was elevated to level 2'
+            conn.sendall('You were elevated to level 2\nPress <RETURN> to accept')
+            receive(conn)
+            clear_player_screen(conn)
+            send_room(conn,current_room,username)
+
+        if command[:5] == 'kick ':
+            player = command[5:]
+            kicklist.append(player)
+            print username+' kicked '+player+' from the server'
+            clear_player_screen(conn)
+            send_room(conn,current_room,username)
+
+        if command[:7] == 'addban:':
+            player = command[7:]
+            banlist.append(player)
+            print username+' banned '+player+' from the server'
+            clear_player_screen(conn)
+            send_room(conn,current_room,username)
+
+        if command[:10] == 'removeban:':
+            player = command[10:]
+            banlist.remove(player)
+            print username+' unbanned '+player+' from the server'
             clear_player_screen(conn)
             send_room(conn,current_room,username)
 #
@@ -877,6 +1088,20 @@ for i in range(0,len(files)):
             print 'ID '+str(files[i])+' [FAIL]'
         else:
             print 'ID '+str(files[i])+' [ OK ]'
+#Load Enemies
+print 'Loading enemies'
+enemies = os.listdir(enemy_dir)
+for i in range(0,len(enemies)):
+    if not enemies[i][:1] == '.':
+        try:
+            filein = open(enemy_dir+enemies[i])
+            enemy_data[str(enemies[i])] = json.loads(filein.read())
+            filein.close()
+        except:
+            print enemies[i]+' [FAIL]'
+        else:
+            print enemies[i]+' [ OK ]'
+            enemy_index.append(enemies[i])
 #
 #
 #

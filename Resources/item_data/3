@@ -1,0 +1,1 @@
+{"name": "Gold", "level": 0, "effect": 0, "mana": 0, "attack": 0, "defense": 0, "health": 0, "crit": 0, "phrase": "", "type": "Item", "class": ["Warrior", "Ranger", "Mage"], "desc": "It's gold. It can be used to buy\\nstuff. Simple enough.\\n"}

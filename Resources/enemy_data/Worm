@@ -1,0 +1,1 @@
+{"name": "Worm", "level": 1, "death_phrase": "The worm was slain! Good job, you killed an insect.", "attack": 1, "defense": 0, "health": 5, "attack_phrases": ["The worm lightly slaps you with it's tail!"], "desc": "It's a worm. Seriously. Thing is really\\nonly here for dev purposes. If this\\nthing kills you, you might want to \\nrethink your battle strategies...\\n"}
